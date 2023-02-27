@@ -47,7 +47,7 @@ class BertSelfAttention(nn.Module):
     # next, we need to concat multi-heads and recover the original shape [bs, seq_len, num_attention_heads * attention_head_size = hidden_size]
 
     ### TODO
-    print("hello world")
+    
     raise NotImplementedError
 
 
@@ -96,7 +96,6 @@ class BertLayer(nn.Module):
     # Hint: Remember that BERT applies to the output of each sub-layer, before it is added to the sub-layer input and normalized 
     ### TODO
 
-    print("jjj")
     raise NotImplementedError
 
 
