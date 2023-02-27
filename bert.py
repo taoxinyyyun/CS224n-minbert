@@ -95,6 +95,8 @@ class BertLayer(nn.Module):
     """
     # Hint: Remember that BERT applies to the output of each sub-layer, before it is added to the sub-layer input and normalized 
     ### TODO
+
+    print("jjj")
     raise NotImplementedError
 
 
