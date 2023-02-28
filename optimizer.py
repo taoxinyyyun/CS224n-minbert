@@ -64,6 +64,8 @@ class AdamW(Optimizer):
                 if len(state) == 0:
                     state['first_moment'] = torch.zeros_like(p.data)
                     state['second_moment'] = torch.zeros_like(p.data)
+                    state['first_moment'] = state['first_moment'].to(p.device)
+                    state['second_moment'] = state['second_moment'].to(p.device)
                     state['timestep'] = 0
 
                 # read the state and hyperparameters
