@@ -53,7 +53,7 @@ class MultitaskBERT(nn.Module):
                 param.requires_grad = True
         ### TODO
         self.dropout = torch.nn.Dropout(config.hidden_dropout_prob)
-        self.linear = torch.nn.Linear(config.hidden_size, config.num_labels)
+        self.linear = torch.nn.Linear(config.hidden_size, N_SENTIMENT_CLASSES)
 
 
     def forward(self, input_ids, attention_mask):
