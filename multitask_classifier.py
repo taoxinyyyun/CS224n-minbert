@@ -53,7 +53,7 @@ class MultitaskBERT(nn.Module):
                 param.requires_grad = True
         ### TODO
         self.dropout = torch.nn.Dropout(config.hidden_dropout_prob)
-        self.linear = torch.nn.Linear(config.hidden_size, N_SENTIMENT_CLASSES)
+        self.linear = torch.nn.Linear(config.hidden_size, config.num_labels)
 
 
     def forward(self, input_ids, attention_mask):
@@ -65,6 +65,7 @@ class MultitaskBERT(nn.Module):
         ### TODO
         pooled_output = self.bert(input_ids=input_ids, attention_mask=attention_mask)['pooler_output']
         return pooled_output
+        
 
 
     def predict_sentiment(self, input_ids, attention_mask):
@@ -100,6 +101,7 @@ class MultitaskBERT(nn.Module):
         return cos_dist
 
 
+
     def predict_similarity(self,
                            input_ids_1, attention_mask_1,
                            input_ids_2, attention_mask_2):
@@ -117,7 +119,6 @@ class MultitaskBERT(nn.Module):
         # cos_dist = cos(pooled_output1, pooled_output2).sigmoid()
         cos_dist = cos_dist = torch.diagonal(torch.mm(pooled_output1, pooled_output2.t())).sigmoid()
         return cos_dist
-
 
 
 
