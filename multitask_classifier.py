@@ -53,7 +53,7 @@ class MultitaskBERT(nn.Module):
                 param.requires_grad = True
         ### TODO
         self.dropout = torch.nn.Dropout(config.hidden_dropout_prob)
-        self.linear = torch.nn.Linear(config.hidden_size, config.num_labels)
+        self.linear = torch.nn.Linear(config.hidden_size, N_SENTIMENT_CLASSES)
 
 
     def forward(self, input_ids, attention_mask):
@@ -92,7 +92,10 @@ class MultitaskBERT(nn.Module):
         pooled_output1 = self.dropout(pooled_output1)
         pooled_output2 = self.forward(input_ids_2, attention_mask_2)
         pooled_output2 = self.dropout(pooled_output2)
-        cos_dist = torch.dot(pooled_output1, pooled_output2)
+        # cos_dist_mat = pooled_output1 @ pooled_output2.T
+        # print(cos_dist_mat.shape)
+        cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+        cos_dist = cos(pooled_output1, pooled_output2)
         return cos_dist
 
 
@@ -109,7 +112,8 @@ class MultitaskBERT(nn.Module):
         pooled_output1 = self.dropout(pooled_output1)
         pooled_output2 = self.forward(input_ids_2, attention_mask_2)
         pooled_output2 = self.dropout(pooled_output2)
-        cos_dist = torch.dot(pooled_output1, pooled_output2).sigmoid()
+        cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+        cos_dist = cos(pooled_output1, pooled_output2).sigmoid()
         return cos_dist
 
 
