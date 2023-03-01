@@ -117,7 +117,7 @@ class MultitaskBERT(nn.Module):
         pooled_output2 = self.dropout(pooled_output2)
         # cos = nn.CosineSimilarity(dim=1, eps=1e-6)
         # cos_dist = cos(pooled_output1, pooled_output2).sigmoid()
-        cos_dist = cos_dist = torch.diagonal(torch.mm(pooled_output1, pooled_output2.t())).sigmoid()
+        cos_dist = torch.diagonal(torch.mm(pooled_output1, pooled_output2.t()))
         return cos_dist
 
 
