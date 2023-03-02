@@ -6,7 +6,6 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from sklearn.metrics import classification_report, f1_score, recall_score, accuracy_score
-q
 # change it with respect to the original model
 from tokenizer import BertTokenizer
 from bert import BertModel

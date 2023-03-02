@@ -65,6 +65,7 @@ class MultitaskBERT(nn.Module):
         ### TODO
         pooled_output = self.bert(input_ids=input_ids, attention_mask=attention_mask)['pooler_output']
         return pooled_output
+        
 
 
     def predict_sentiment(self, input_ids, attention_mask):
@@ -100,6 +101,7 @@ class MultitaskBERT(nn.Module):
         return cos_dist
 
 
+
     def predict_similarity(self,
                            input_ids_1, attention_mask_1,
                            input_ids_2, attention_mask_2):
@@ -115,9 +117,8 @@ class MultitaskBERT(nn.Module):
         pooled_output2 = self.dropout(pooled_output2)
         # cos = nn.CosineSimilarity(dim=1, eps=1e-6)
         # cos_dist = cos(pooled_output1, pooled_output2).sigmoid()
-        cos_dist = cos_dist = torch.diagonal(torch.mm(pooled_output1, pooled_output2.t())).sigmoid()
+        cos_dist = torch.diagonal(torch.mm(pooled_output1, pooled_output2.t()))
         return cos_dist
-
 
 
 
