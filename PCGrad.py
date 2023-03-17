@@ -24,6 +24,13 @@ class PCGrad():
 
         return self.optim.zero_grad(set_to_none=True)
     
+    def step(self):
+        '''
+        update the parameters with the gradient
+        '''
+
+        return self.optim.step()
+    
     def pc_gradient(self, objectives):
         '''
         calculate the gradient of the parameters
@@ -42,9 +49,9 @@ class PCGrad():
         pack the gradient of the parameters of the network for each objective
         
         output:
-        - grad: a list of the gradient of the parameters
-        - shape: a list of the shape of the parameters
-        - has_grad: a list of mask represent whether the parameter has gradient
+        - grads: a list of flattened gradiens of the objectives
+        - shape: a list of the shape of the parameters of the objectives
+        - has_grads: a list of masks represent whether the parameter has gradient for each objective
         '''
 
         grads, shapes, has_grads = [], [], []
@@ -58,8 +65,10 @@ class PCGrad():
         return grads, shapes, has_grads
 
     def project_conflicting(self, grads, has_grads, shapes=None):
+        # a boolean vector indicating whether each param is shared
         shared = torch.stack(has_grads).prod(0).bool()
         pc_grad, num_task = copy.deepcopy(grads), len(grads)
+        # perform gradient surgery for conflicting gradients.
         for g_i in pc_grad:
             random.shuffle(grads)
             for g_j in grads:
@@ -67,10 +76,10 @@ class PCGrad():
                 if g_i_g_j < 0:
                     g_i -= (g_i_g_j) * g_j / (g_j.norm()**2)
         merged_grad = torch.zeros_like(grads[0]).to(grads[0].device)
-        if self._reduction:
+        if self.reduction:
             merged_grad[shared] = torch.stack([g[shared]
                                            for g in pc_grad]).mean(dim=0)
-        elif self._reduction == 'sum':
+        elif self.reduction == 'sum':
             merged_grad[shared] = torch.stack([g[shared]
                                            for g in pc_grad]).sum(dim=0)
         else: exit('invalid reduction method')
@@ -111,7 +120,7 @@ class PCGrad():
         '''
 
         idx = 0
-        for group in self._optim.param_groups:
+        for group in self.optim.param_groups:
             for p in group['params']:
                 # if p.grad is None: continue
                 p.grad = grads[idx]

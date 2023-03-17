@@ -15,6 +15,8 @@ from datasets import SentenceClassificationDataset, SentencePairDataset, \
 
 from evaluation import model_eval_sst, test_model_multitask, model_eval_multitask
 
+from PCGrad import PCGrad
+
 
 TQDM_DISABLE=True
 
@@ -187,16 +189,25 @@ def train_multitask(args):
 
     lr = args.lr
     optimizer = AdamW(model.parameters(), lr=lr)
+    pc_optimizer = PCGrad(optimizer)
+
     best_dev_acc = 0
 
     # Run for the specified number of epochs
     for epoch in range(args.epochs):
         model.train()
 
-        # train on SST
         train_loss_sst = 0
+        train_loss_para = 0
+        train_loss_sts = 0
         num_batches = 0
-        for batch in tqdm(sst_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
+        for batch_sst, batch_para, batch_sts in zip(tqdm(sst_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE)
+            , tqdm(para_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE)
+            , tqdm(sts_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE)):
+
+            # train on SST
+            # print('SST batch')
+            batch = batch_sst
             b_ids, b_mask, b_labels = (batch['token_ids'],
                                        batch['attention_mask'], batch['labels'])
 
@@ -204,75 +215,66 @@ def train_multitask(args):
             b_mask = b_mask.to(device)
             b_labels = b_labels.to(device)
 
-            optimizer.zero_grad()
             logits = model.predict_sentiment(b_ids, b_mask)
-            loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
-            loss.backward()
-            optimizer.step()
+            loss1 = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
 
-            train_loss_sst += loss.item()
+            train_loss_sst += loss1.item()
+
+            # train on Para
+            # print('Para batch')
+            batch = batch_para
+            (b_ids1, b_mask1,
+             b_ids2, b_mask2,
+             b_labels, b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
+                          batch['token_ids_2'], batch['attention_mask_2'],
+                          batch['labels'], batch['sent_ids'])
+
+            b_ids1 = b_ids1.to(device)
+            b_mask1 = b_mask1.to(device)
+            b_ids2 = b_ids2.to(device)
+            b_mask2 = b_mask2.to(device)
+            b_labels = b_labels.to(device)
+
+            #optimizer.zero_grad()
+            logits = model.predict_paraphrase(b_ids1, b_mask1, b_ids2, b_mask2)
+            loss2 = F.binary_cross_entropy_with_logits(logits, b_labels.view(-1).float(), reduction='sum') / args.batch_size
+
+            train_loss_para += loss2.item()
+
+            # train on STS
+            # print('STS batch')
+            batch = batch_sts
+            (b_ids1, b_mask1,
+             b_ids2, b_mask2,
+             b_labels, b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
+                          batch['token_ids_2'], batch['attention_mask_2'],
+                          batch['labels'], batch['sent_ids'])
+
+            b_ids1 = b_ids1.to(device)
+            b_mask1 = b_mask1.to(device)
+            b_ids2 = b_ids2.to(device)
+            b_mask2 = b_mask2.to(device)
+            b_labels = b_labels.to(device)
+
+            #optimizer.zero_grad()
+            logits = model.predict_similarity(b_ids1, b_mask1, b_ids2, b_mask2)
+            loss3 = F.mse_loss(logits, b_labels.view(-1).float(), reduction='sum') / args.batch_size
+
+            train_loss_sts += loss3.item()
+
+            pc_optimizer.zero_grad() 
+            total_loss = [loss1, loss2, loss3]
+            pc_optimizer.pc_gradient(total_loss)
+            pc_optimizer.step()
             num_batches += 1
 
         train_loss_sst = train_loss_sst / (num_batches)
-        print(f"Epoch {epoch}: SST train loss :: {train_loss_sst :.3f}")
-        
-        # train on Para
-        train_loss_para = 0
-        num_batches = 0
-        for batch in tqdm(para_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
-            (b_ids1, b_mask1,
-             b_ids2, b_mask2,
-             b_labels, b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
-                          batch['token_ids_2'], batch['attention_mask_2'],
-                          batch['labels'], batch['sent_ids'])
-
-            b_ids1 = b_ids1.to(device)
-            b_mask1 = b_mask1.to(device)
-            b_ids2 = b_ids2.to(device)
-            b_mask2 = b_mask2.to(device)
-            b_labels = b_labels.to(device)
-
-            optimizer.zero_grad()
-            logits = model.predict_paraphrase(b_ids1, b_mask1, b_ids2, b_mask2)
-            loss = F.binary_cross_entropy_with_logits(logits, b_labels.view(-1).float(), reduction='sum') / args.batch_size
-
-            loss.backward()
-            optimizer.step()
-
-            train_loss_para += loss.item()
-            num_batches += 1
-
         train_loss_para = train_loss_para / (num_batches)
-        print(f"Epoch {epoch}: Para train loss :: {train_loss_para :.3f}")
-
-        # train on STS
-        train_loss_sts = 0
-        num_batches = 0
-        for batch in tqdm(sts_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
-            (b_ids1, b_mask1,
-             b_ids2, b_mask2,
-             b_labels, b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
-                          batch['token_ids_2'], batch['attention_mask_2'],
-                          batch['labels'], batch['sent_ids'])
-
-            b_ids1 = b_ids1.to(device)
-            b_mask1 = b_mask1.to(device)
-            b_ids2 = b_ids2.to(device)
-            b_mask2 = b_mask2.to(device)
-            b_labels = b_labels.to(device)
-
-            optimizer.zero_grad()
-            logits = model.predict_similarity(b_ids1, b_mask1, b_ids2, b_mask2)
-            loss = F.mse_loss(logits, b_labels.view(-1).float(), reduction='sum') / args.batch_size
-
-            loss.backward()
-            optimizer.step()
-
-            train_loss_sts += loss.item()
-            num_batches += 1
-
         train_loss_sts = train_loss_sts / (num_batches)
-        print(f"Epoch {epoch}: STS train loss :: {train_loss_sts :.3f}")
+        print(f"Epoch {epoch}: SST: train loss :: {train_loss_sst :.3f}\n" +
+            f"Para train loss :: {train_loss_para :.3f}\n" +
+            f"STS train loss :: {train_loss_sts :.3f}")
+
 
         # Print progress and save best model
         print(f"Epoch {epoch}")
