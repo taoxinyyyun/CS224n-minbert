@@ -15,6 +15,7 @@ class AdamW(Optimizer):
             weight_decay: float = 0.0,
             correct_bias: bool = True,
     ):
+        print("AdamW, wd", weight_decay)
         if lr < 0.0:
             raise ValueError("Invalid learning rate: {} - should be >= 0.0".format(lr))
         if not 0.0 <= betas[0] < 1.0:
