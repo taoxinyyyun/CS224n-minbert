@@ -189,7 +189,7 @@ def train_multitask(args):
 
     lr = args.lr
     optimizer = AdamW(model.parameters(), lr=lr)
-    pc_optimizer = PCGrad(optimizer)
+    pc_optimizer = PCGrad(optimizer, 'sum')
 
     best_dev_acc = 0
 
