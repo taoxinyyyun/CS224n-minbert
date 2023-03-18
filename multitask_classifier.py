@@ -52,7 +52,8 @@ class MultitaskBERT(nn.Module):
             elif config.option == 'finetune':
                 param.requires_grad = True
         ### TODO
-        raise NotImplementedError
+        self.dropout = torch.nn.Dropout(config.hidden_dropout_prob)
+        self.linear = torch.nn.Linear(config.hidden_size, N_SENTIMENT_CLASSES)
 
 
     def forward(self, input_ids, attention_mask):
@@ -62,7 +63,9 @@ class MultitaskBERT(nn.Module):
         # When thinking of improvements, you can later try modifying this
         # (e.g., by adding other layers).
         ### TODO
-        raise NotImplementedError
+        pooled_output = self.bert(input_ids=input_ids, attention_mask=attention_mask)['pooler_output']
+        return pooled_output
+        
 
 
     def predict_sentiment(self, input_ids, attention_mask):
@@ -72,7 +75,10 @@ class MultitaskBERT(nn.Module):
         Thus, your output should contain 5 logits for each sentence.
         '''
         ### TODO
-        raise NotImplementedError
+        pooled_output = self.forward(input_ids, attention_mask)
+        pooled_output = self.dropout(pooled_output)
+        out = self.linear(pooled_output)
+        return out
 
 
     def predict_paraphrase(self,
@@ -83,7 +89,17 @@ class MultitaskBERT(nn.Module):
         during evaluation, and handled as a logit by the appropriate loss function.
         '''
         ### TODO
-        raise NotImplementedError
+        pooled_output1 = self.forward(input_ids_1, attention_mask_1)
+        pooled_output1 = self.dropout(pooled_output1)
+        pooled_output2 = self.forward(input_ids_2, attention_mask_2)
+        pooled_output2 = self.dropout(pooled_output2)
+        # cos_dist_mat = pooled_output1 @ pooled_output2.T
+        # print(cos_dist_mat.shape)
+        # cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+        # cos_dist = cos(pooled_output1, pooled_output2)
+        cos_dist = torch.diagonal(torch.mm(pooled_output1, pooled_output2.t()))
+        return cos_dist
+
 
 
     def predict_similarity(self,
@@ -93,9 +109,16 @@ class MultitaskBERT(nn.Module):
         Note that your output should be unnormalized (a logit); it will be passed to the sigmoid function
         during evaluation, and handled as a logit by the appropriate loss function.
         '''
+        # Update: it is no longer passed to sigmoid in evaluation.py
         ### TODO
-        raise NotImplementedError
-
+        pooled_output1 = self.forward(input_ids_1, attention_mask_1)
+        pooled_output1 = self.dropout(pooled_output1)
+        pooled_output2 = self.forward(input_ids_2, attention_mask_2)
+        pooled_output2 = self.dropout(pooled_output2)
+        # cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+        # cos_dist = cos(pooled_output1, pooled_output2).sigmoid()
+        cos_dist = torch.diagonal(torch.mm(pooled_output1, pooled_output2.t()))
+        return cos_dist
 
 
 

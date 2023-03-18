@@ -7,6 +7,44 @@ from base_bert import BertPreTrainedModel
 from utils import *
 
 
+class BertPals(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        
+        #Encoder and decoder matrics project down to the smaller dimension
+        self.aug_dense = nn.Linear(config.hidden_size, config.hidden_size_aug)
+        self.aug_dense2 = nn.Linear(config.hidden_size_aug, config.hidden_size)
+        self.attn = BertSelfAttention(config,6)
+        self.config = config
+        self.hidden_act_fn = F.gelu
+        
+    def forward(self, hidden_states, attention_mask=None):
+        hidden_states_aug = self.aug_dense(hidden_states)
+        hidden_states_aug = self.attn(hidden_states_aug, attention_mask)
+        hidden_states = self.aug_dense2(hidden_states_aug)
+        return hidden_states
+      
+'''      
+class BERTLowRank(nn.Module):
+    def __init__(self, config, extra_dim=None):
+        super(BERTLowRank, self).__init__()
+        # Encoder and decoder matrices project down to the smaller dimension
+        if config.extra_dim:
+            self.aug_dense = nn.Linear(config.hidden_size, config.extra_dim)
+            self.aug_dense2 = nn.Linear(config.extra_dim, config.hidden_size)
+        else:
+            self.aug_dense = nn.Linear(config.hidden_size, config.hidden_size_aug)
+            self.aug_dense2 = nn.Linear(config.hidden_size_aug, config.hidden_size)
+        self.config = config
+        self.hidden_act_fn = gelu
+
+    def forward(self, hidden_states, attention_mask=None):
+        hidden_states_aug = self.aug_dense(hidden_states)
+        hidden_states_aug = self.hidden_act_fn(hidden_states_aug)
+        hidden_states = self.aug_dense2(hidden_states_aug)
+        return hidden_states
+'''
+        
 class BertSelfAttention(nn.Module):
   def __init__(self, config):
     super().__init__()
