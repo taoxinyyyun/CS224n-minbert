@@ -206,7 +206,7 @@ def train_multitask(args):
             , tqdm(sts_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE)):
 
             # train on SST
-            # print('SST batch')
+            print('training SST batch')
             batch = batch_sst
             b_ids, b_mask, b_labels = (batch['token_ids'],
                                        batch['attention_mask'], batch['labels'])
@@ -221,7 +221,7 @@ def train_multitask(args):
             train_loss_sst += loss1.item()
 
             # train on Para
-            # print('Para batch')
+            print('training Para batch')
             batch = batch_para
             (b_ids1, b_mask1,
              b_ids2, b_mask2,
@@ -242,7 +242,7 @@ def train_multitask(args):
             train_loss_para += loss2.item()
 
             # train on STS
-            # print('STS batch')
+            print('training STS batch')
             batch = batch_sts
             (b_ids1, b_mask1,
              b_ids2, b_mask2,
