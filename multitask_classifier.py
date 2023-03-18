@@ -97,11 +97,11 @@ class MultitaskBERT(nn.Module):
         '''
         ### TODO
         pooled_output1 = self.forward(input_ids_1, attention_mask_1)
-        pooled_output1 = self.linear_para1(pooled_output1)
         pooled_output1 = self.dropout(pooled_output1)
+        pooled_output1 = self.linear_para1(pooled_output1)
         pooled_output2 = self.forward(input_ids_2, attention_mask_2)
-        pooled_output2 = self.linear_para2(pooled_output2)
         pooled_output2 = self.dropout(pooled_output2)
+        pooled_output2 = self.linear_para2(pooled_output2)
         cos_dist = torch.diagonal(torch.mm(pooled_output1, pooled_output2.t()))
         return cos_dist
 
@@ -117,11 +117,11 @@ class MultitaskBERT(nn.Module):
         # Update: it is no longer passed to sigmoid in evaluation.py
         ### TODO
         pooled_output1 = self.forward(input_ids_1, attention_mask_1)
-        pooled_output1 = self.linear_sim1(pooled_output1)
         pooled_output1 = self.dropout(pooled_output1)
+        pooled_output1 = self.linear_sim1(pooled_output1)
         pooled_output2 = self.forward(input_ids_2, attention_mask_2)
-        pooled_output2 = self.linear_sim2(pooled_output2)
         pooled_output2 = self.dropout(pooled_output2)
+        pooled_output2 = self.linear_sim2(pooled_output2)
         cos_dist = torch.diagonal(torch.mm(pooled_output1, pooled_output2.t()))
         return cos_dist
 
