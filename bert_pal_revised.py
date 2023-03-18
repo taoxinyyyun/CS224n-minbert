@@ -25,24 +25,21 @@ class BertPals(nn.Module):
         hidden_states = self.aug_dense2(hidden_states_aug)
         return hidden_states
 
-# class BERTLowRank(nn.Module):
-#     def __init__(self, config, extra_dim=None):
-#         super(BERTLowRank, self).__init__()
-#         # Encoder and decoder matrices project down to the smaller dimension
-#         if config.extra_dim:
-#             self.aug_dense = nn.Linear(config.hidden_size, config.extra_dim)
-#             self.aug_dense2 = nn.Linear(config.extra_dim, config.hidden_size)
-#         else:
-#             self.aug_dense = nn.Linear(config.hidden_size, config.hidden_size_aug)
-#             self.aug_dense2 = nn.Linear(config.hidden_size_aug, config.hidden_size)
-#         self.config = config
-#         self.hidden_act_fn = gelu
+class BERTLowRank(nn.Module):
+     def __init__(self, config, extra_dim=None):
+        super(BERTLowRank, self).__init__()
+        # Encoder and decoder matrices project down to the smaller dimension
 
-#     def forward(self, hidden_states, attention_mask=None):
-#         hidden_states_aug = self.aug_dense(hidden_states)
-#         hidden_states_aug = self.hidden_act_fn(hidden_states_aug)
-#         hidden_states = self.aug_dense2(hidden_states_aug)
-#         return hidden_states
+        self.aug_dense = nn.Linear(config.hidden_size, config.hidden_size_aug)
+        self.aug_dense2 = nn.Linear(config.hidden_size_aug, config.hidden_size)
+        self.config = config
+        self.hidden_act_fn = F.gelu
+
+    def forward(self, hidden_states, attention_mask=None):
+        hidden_states_aug = self.aug_dense(hidden_states)
+        hidden_states_aug = self.hidden_act_fn(hidden_states_aug)
+        hidden_states = self.aug_dense2(hidden_states_aug)
+        return hidden_states
 
 class BertSelfAttention(nn.Module):
   def __init__(self, config):
@@ -140,7 +137,8 @@ class BertSelfAttention(nn.Module):
 class BertSelfAttentionPAL(nn.Module):
   def __init__(self, config):
     super().__init__()
-
+    
+    #NOTE: FOR PAL AND LOWRANK
     self.num_attention_heads = config.num_attention_heads
     self.attention_head_size = int(config.hidden_size_aug / config.num_attention_heads)
     self.all_head_size = self.num_attention_heads * self.attention_head_size
@@ -254,8 +252,8 @@ class BertLayer(nn.Module):
     self.multi_layers = None
     if config.extension_option == 'pal':
       multi = BertPals(config)
-      # elif config.extension_option == 'lowrank':
-      #   multi = BERTLowRank(config)
+    elif config.extension_option == 'lowrank':
+      multi = BERTLowRank(config)
     self.multi_layers = nn.ModuleList([copy.deepcopy(multi) for _ in range(NUM_TASKS)])
 
   def add_norm(self, input, output, dense_layer, dropout, ln_layer):
