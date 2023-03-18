@@ -349,7 +349,7 @@ class BertModel(BertPreTrainedModel):
         self.mult_aug_dense = nn.ModuleList([copy.deepcopy(dense) for _ in range(NUM_TASKS)])
         dense2 = nn.Linear(config.hidden_size_aug, config.hidden_size)
         self.mult_aug_dense2 = nn.ModuleList([copy.deepcopy(dense2) for _ in range(NUM_TASKS)])
-        for l, layer in enumerate(self.layer):
+        for l, layer in enumerate(self.bert_layers):
             for i, lay in enumerate(layer.multi_layers):
                 lay.aug_dense = self.mult_aug_dense[i]
                 lay.aug_dense2 = self.mult_aug_dense2[i]
