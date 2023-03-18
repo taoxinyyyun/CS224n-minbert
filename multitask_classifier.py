@@ -61,14 +61,14 @@ class MultitaskBERT(nn.Module):
         self.cos = nn.CosineSimilarity(dim=1, eps=1e-6)
 
 
-    def forward(self, input_ids, attention_mask):
+    def forward(self, input_ids, attention_mask, task_id=0):
         'Takes a batch of sentences and produces embeddings for them.'
         # The final BERT embedding is the hidden state of [CLS] token (the first token)
         # Here, you can start by just returning the embeddings straight from BERT.
         # When thinking of improvements, you can later try modifying this
         # (e.g., by adding other layers).
         ### TODO
-        pooled_output = self.bert(input_ids=input_ids, attention_mask=attention_mask)['pooler_output']
+        pooled_output = self.bert(input_ids=input_ids, attention_mask=attention_mask, task_id=task_id)['pooler_output']
         return pooled_output
 
 
@@ -79,7 +79,7 @@ class MultitaskBERT(nn.Module):
         Thus, your output should contain 5 logits for each sentence.
         '''
         ### TODO
-        pooled_output = self.forward(input_ids, attention_mask)
+        pooled_output = self.forward(input_ids, attention_mask, 0)
         pooled_output = self.dropout(pooled_output)
         out = self.linear_sent(pooled_output)
         return out
@@ -93,10 +93,10 @@ class MultitaskBERT(nn.Module):
         during evaluation, and handled as a logit by the appropriate loss function.
         '''
         ### TODO
-        pooled_output1 = self.forward(input_ids_1, attention_mask_1)
+        pooled_output1 = self.forward(input_ids_1, attention_mask_1, 1)
         pooled_output1 = self.dropout(pooled_output1)
         pooled_output1 = self.linear_para1(pooled_output1)
-        pooled_output2 = self.forward(input_ids_2, attention_mask_2)
+        pooled_output2 = self.forward(input_ids_2, attention_mask_2, 1)
         pooled_output2 = self.dropout(pooled_output2)
         pooled_output2 = self.linear_para2(pooled_output2)
         cos_dist = torch.diagonal(torch.mm(pooled_output1, pooled_output2.t()))
@@ -113,10 +113,10 @@ class MultitaskBERT(nn.Module):
         '''
         # Update: it is no longer passed to sigmoid in evaluation.py
         ### TODO
-        pooled_output1 = self.forward(input_ids_1, attention_mask_1)
+        pooled_output1 = self.forward(input_ids_1, attention_mask_1, 2)
         pooled_output1 = self.dropout(pooled_output1)
         pooled_output1 = self.linear_sim1(pooled_output1)
-        pooled_output2 = self.forward(input_ids_2, attention_mask_2)
+        pooled_output2 = self.forward(input_ids_2, attention_mask_2, 2)
         pooled_output2 = self.dropout(pooled_output2)
         pooled_output2 = self.linear_sim2(pooled_output2)
         cos_dist = torch.diagonal(torch.mm(pooled_output1, pooled_output2.t()))
@@ -186,8 +186,7 @@ def train_multitask(args):
     model = model.to(device)
 
     lr = args.lr
-    weight_decay = args.weight_decay
-    optimizer = AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+    optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
 
     # Run for the specified number of epochs
@@ -341,13 +340,16 @@ def get_args():
     parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
     parser.add_argument("--lr", type=float, help="learning rate, default lr for 'pretrain': 1e-3, 'finetune': 1e-5",
                         default=1e-5)
-    parser.add_argument("--weight_decay", type=float, help="weight decay for regularization", default=0.0)
+
+    # pal and lowrank extension
+    parser.add_argument("--extension_option", type=str, choices=('none', 'pal', 'lowrank'), default="none")
+    
     args = parser.parse_args()
     return args
 
 if __name__ == "__main__":
     args = get_args()
-    args.filepath = f'{args.option}-{args.epochs}-{args.lr}-{args.weight_decay}-multitask.pt' # save path
+    args.filepath = f'{args.option}-{args.epochs}-{args.lr}-{args.extension_option}-multitask.pt' # save path
     seed_everything(args.seed)  # fix the seed for reproducibility
     train_multitask(args)
     test_model(args)
