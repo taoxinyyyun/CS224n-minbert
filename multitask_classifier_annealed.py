@@ -162,7 +162,7 @@ def train_multitask(args):
     # sentence pair data
     para_train_data = SentencePairDataset(para_train_data, args)
     para_dev_data = SentencePairDataset(para_dev_data, args)
-    para_train_dataloader = DataLoader(para_train_data, shuffle=True, batch_size=args.batch_size*2,
+    para_train_dataloader = DataLoader(para_train_data, shuffle=True, batch_size=args.batch_size,
                                       collate_fn=para_train_data.collate_fn)
     para_dev_dataloader = DataLoader(para_dev_data, shuffle=False, batch_size=args.batch_size,
                                     collate_fn=para_dev_data.collate_fn)
@@ -174,6 +174,11 @@ def train_multitask(args):
                                         collate_fn=sts_train_data.collate_fn)
     sts_dev_dataloader = DataLoader(sts_dev_data, shuffle=False, batch_size=args.batch_size,
                                         collate_fn=sts_dev_data.collate_fn)
+
+    # define the number of training steps
+    ds_len = len(sts_train_data)
+    steps_per_epoch = int(ds_len/ args.batch_size) * 3
+
 
     # Init model
     config = {'hidden_dropout_prob': args.hidden_dropout_prob,
@@ -189,85 +194,105 @@ def train_multitask(args):
 
     lr = args.lr
     optimizer = AdamW(model.parameters(), lr=lr)
-    pc_optimizer = PCGrad(optimizer, 'sum')
+    #pc_optimizer = PCGrad(optimizer, 'sum')
 
     best_dev_acc = 0
 
     # Run for the specified number of epochs
     for epoch in range(args.epochs):
+        if args.sample == 'anneal':
+                probs = [8854, 141498, 6040]
+                alpha = 1. - 0.8 * epoch / (args.epochs - 1)
+                probs = [p**alpha for p in probs]
+                tot = sum(probs)
+                probs = [p/tot for p in probs]
         model.train()
 
         train_loss_sst = 0
         train_loss_para = 0
         train_loss_sts = 0
         num_batches = 0
-        for batch_sst, batch_para, batch_sts in zip(tqdm(sst_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE)
-            , tqdm(para_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE)
-            , tqdm(sts_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE)):
+        steps_0, steps_1, steps_2 = 0
+        for step in range(steps_per_epoch):
+            task_id = np.random.choice(3, p=probs)
+            if task_id == 0:
+        # for batch_sst, batch_para, batch_sts in zip(tqdm(sst_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE)
+        #     , tqdm(para_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE)
+        #     , tqdm(sts_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE)):
 
-            # train on SST
-            batch = batch_sst
-            b_ids, b_mask, b_labels = (batch['token_ids'],
-                                       batch['attention_mask'], batch['labels'])
+                # train on SST
+                batch = next(sst_train_dataloader)
+                b_ids, b_mask, b_labels = (batch['token_ids'],
+                                        batch['attention_mask'], batch['labels'])
 
-            b_ids = b_ids.to(device)
-            b_mask = b_mask.to(device)
-            b_labels = b_labels.to(device)
+                b_ids = b_ids.to(device)
+                b_mask = b_mask.to(device)
+                b_labels = b_labels.to(device)
 
-            logits = model.predict_sentiment(b_ids, b_mask)
-            loss1 = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
+                optimizer.zero_grad()
 
-            train_loss_sst += loss1.item()
+                logits = model.predict_sentiment(b_ids, b_mask)
+                loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
+
+                loss.backward()
+                optimizer.step()
+                steps_0 += 1
+
+                train_loss_sst += loss.item()
 
             # train on Para
-            batch = batch_para
-            (b_ids1, b_mask1,
-             b_ids2, b_mask2,
-             b_labels, b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
-                          batch['token_ids_2'], batch['attention_mask_2'],
-                          batch['labels'], batch['sent_ids'])
+            elif task_id == 1:
+                batch = next(para_train_dataloader)
+                (b_ids1, b_mask1,
+                b_ids2, b_mask2,
+                b_labels, b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
+                            batch['token_ids_2'], batch['attention_mask_2'],
+                            batch['labels'], batch['sent_ids'])
 
-            b_ids1 = b_ids1.to(device)
-            b_mask1 = b_mask1.to(device)
-            b_ids2 = b_ids2.to(device)
-            b_mask2 = b_mask2.to(device)
-            b_labels = b_labels.to(device)
+                b_ids1 = b_ids1.to(device)
+                b_mask1 = b_mask1.to(device)
+                b_ids2 = b_ids2.to(device)
+                b_mask2 = b_mask2.to(device)
+                b_labels = b_labels.to(device)
 
-            #optimizer.zero_grad()
-            logits = model.predict_paraphrase(b_ids1, b_mask1, b_ids2, b_mask2)
-            loss2 = F.binary_cross_entropy_with_logits(logits, b_labels.view(-1).float(), reduction='sum') / args.batch_size
+                optimizer.zero_grad()
+                logits = model.predict_paraphrase(b_ids1, b_mask1, b_ids2, b_mask2)
+                loss = F.binary_cross_entropy_with_logits(logits, b_labels.view(-1).float(), reduction='sum') / args.batch_size
 
-            train_loss_para += loss2.item()
+                loss.backward()
+                optimizer.step()
+                steps_1 += 1
+
+                train_loss_para += loss.item()
 
             # train on STS
-            batch = batch_sts
-            (b_ids1, b_mask1,
-             b_ids2, b_mask2,
-             b_labels, b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
-                          batch['token_ids_2'], batch['attention_mask_2'],
-                          batch['labels'], batch['sent_ids'])
+            else: 
+                batch = next(sts_train_dataloader)
+                (b_ids1, b_mask1,
+                b_ids2, b_mask2,
+                b_labels, b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
+                            batch['token_ids_2'], batch['attention_mask_2'],
+                            batch['labels'], batch['sent_ids'])
 
-            b_ids1 = b_ids1.to(device)
-            b_mask1 = b_mask1.to(device)
-            b_ids2 = b_ids2.to(device)
-            b_mask2 = b_mask2.to(device)
-            b_labels = b_labels.to(device)
+                b_ids1 = b_ids1.to(device)
+                b_mask1 = b_mask1.to(device)
+                b_ids2 = b_ids2.to(device)
+                b_mask2 = b_mask2.to(device)
+                b_labels = b_labels.to(device)
 
-            #optimizer.zero_grad()
-            logits = model.predict_similarity(b_ids1, b_mask1, b_ids2, b_mask2)
-            loss3 = F.mse_loss(logits, b_labels.view(-1).float(), reduction='sum') / args.batch_size
+                optimizer.zero_grad()
+                logits = model.predict_similarity(b_ids1, b_mask1, b_ids2, b_mask2)
+                loss = F.mse_loss(logits, b_labels.view(-1).float(), reduction='sum') / args.batch_size
 
-            train_loss_sts += loss3.item()
+                loss.backward()
+                optimizer.step()
+                steps_2+=1
 
-            pc_optimizer.zero_grad() 
-            total_loss = [loss1, loss2, loss3]
-            pc_optimizer.pc_gradient(total_loss)
-            pc_optimizer.step()
-            num_batches += 1
+                train_loss_sts += loss.item()
 
-        train_loss_sst = train_loss_sst / (num_batches)
-        train_loss_para = train_loss_para / (num_batches)
-        train_loss_sts = train_loss_sts / (num_batches)
+        train_loss_sst = train_loss_sst / (steps_0)
+        train_loss_para = train_loss_para / (steps_1)
+        train_loss_sts = train_loss_sts / (steps_2)
         print(f"Epoch {epoch}: SST: train loss :: {train_loss_sst :.3f}\n" +
             f"Para train loss :: {train_loss_para :.3f}\n" +
             f"STS train loss :: {train_loss_sts :.3f}")
@@ -341,6 +366,9 @@ def get_args():
     
     # pal and lowrank extension
     parser.add_argument("--extension_option", type=str, choices=('none', 'pal', 'lowrank'), default="none")
+
+    # annealed samping extension
+    parser.add_argument("--sample", type=str, choices=('none', 'anneal'), default="none")
 
     args = parser.parse_args()
     return args
