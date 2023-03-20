@@ -225,7 +225,12 @@ def train_multitask(args):
         #     , tqdm(sts_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE)):
 
                 # train on SST
-                batch = next(sst_train_iter)
+                try:
+                    batch = next(sst_train_iter)
+                except StopIteration:
+                    sst_train_iter = iter(sst_train_dataloader)
+                    batch = next(sst_train_iter)
+
                 b_ids, b_mask, b_labels = (batch['token_ids'],
                                        batch['attention_mask'], batch['labels'])
 
@@ -246,7 +251,11 @@ def train_multitask(args):
 
             # train on Para
             elif task_id == 1:
-                batch = next(para_train_iter)
+                try:
+                    batch = next(para_train_iter)
+                except StopIteration:
+                    para_train_iter = iter(para_train_dataloader)
+                    batch = next(para_train_iter)
                 (b_ids1, b_mask1,
                 b_ids2, b_mask2,
                 b_labels, b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
@@ -271,7 +280,12 @@ def train_multitask(args):
 
             # train on STS
             else: 
-                batch = next(sts_train_iter)
+                try:
+                    batch = next(sts_train_iter)
+                except StopIteration:
+                    sts_train_iter = iter(sts_train_dataloader)
+                    batch = next(sts_train_iter)
+                    
                 (b_ids1, b_mask1,
                 b_ids2, b_mask2,
                 b_labels, b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
