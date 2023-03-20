@@ -212,7 +212,7 @@ def train_multitask(args):
         train_loss_para = 0
         train_loss_sts = 0
         num_batches = 0
-        steps_0, steps_1, steps_2 = 0
+        steps_0, steps_1, steps_2 = 0, 0, 0
         for step in range(steps_per_epoch):
             task_id = np.random.choice(3, p=probs)
             if task_id == 0:
