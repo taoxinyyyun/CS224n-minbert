@@ -158,6 +158,7 @@ def train_multitask(args):
                                       collate_fn=sst_train_data.collate_fn)
     sst_dev_dataloader = DataLoader(sst_dev_data, shuffle=False, batch_size=args.batch_size,
                                     collate_fn=sst_dev_data.collate_fn)
+    sst_train_iter = iter(sst_train_dataloader)
     
     # sentence pair data
     para_train_data = SentencePairDataset(para_train_data, args)
@@ -166,6 +167,7 @@ def train_multitask(args):
                                       collate_fn=para_train_data.collate_fn)
     para_dev_dataloader = DataLoader(para_dev_data, shuffle=False, batch_size=args.batch_size,
                                     collate_fn=para_dev_data.collate_fn)
+    para_train_iter = iter(para_train_dataloader)
     
     # sentence similarity data
     sts_train_data = SentencePairDataset(sts_train_data, args, isRegression=True)
@@ -174,6 +176,7 @@ def train_multitask(args):
                                         collate_fn=sts_train_data.collate_fn)
     sts_dev_dataloader = DataLoader(sts_dev_data, shuffle=False, batch_size=args.batch_size,
                                         collate_fn=sts_dev_data.collate_fn)
+    sts_train_iter = iter(sts_train_dataloader)
 
     # define the number of training steps
     ds_len = len(sts_train_data)
@@ -213,6 +216,7 @@ def train_multitask(args):
         train_loss_sts = 0
         num_batches = 0
         steps_0, steps_1, steps_2 = 0, 0, 0
+
         for step in range(steps_per_epoch):
             task_id = np.random.choice(3, p=probs)
             if task_id == 0:
@@ -221,8 +225,7 @@ def train_multitask(args):
         #     , tqdm(sts_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE)):
 
                 # train on SST
-                batch = next(enumerate(sst_train_dataloader))
-                print(batch)
+                batch = next(sst_train_iter)
                 batch = tuple(t.to(device) for t in batch)
                 b_ids, b_mask, b_labels = batch
 
@@ -239,7 +242,8 @@ def train_multitask(args):
 
             # train on Para
             elif task_id == 1:
-                batch = next(enumerate(para_train_dataloader))
+                batch = next(para_train_iter)
+                print(batch)
                 batch = tuple(t.to(device) for t in batch)
                 b_ids1, b_mask1, b_ids2, b_mask2, b_labels, b_sent_ids = batch
                 
@@ -255,7 +259,7 @@ def train_multitask(args):
 
             # train on STS
             else: 
-                batch = next(enumerate(sts_train_dataloader))
+                batch = next(sts_train_iter)
                 batch = tuple(t.to(device) for t in batch)
                 b_ids1, b_mask1,
                 b_ids2, b_mask2,
