@@ -222,6 +222,7 @@ def train_multitask(args):
 
                 # train on SST
                 batch = next(enumerate(sst_train_dataloader))
+                print(batch)
                 batch = tuple(t.to(device) for t in batch)
                 b_ids, b_mask, b_labels = batch
 
