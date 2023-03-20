@@ -158,7 +158,6 @@ def train_multitask(args):
                                       collate_fn=sst_train_data.collate_fn)
     sst_dev_dataloader = DataLoader(sst_dev_data, shuffle=False, batch_size=args.batch_size,
                                     collate_fn=sst_dev_data.collate_fn)
-    sst_train_iter = iter(sst_train_dataloader)
     
     # sentence pair data
     para_train_data = SentencePairDataset(para_train_data, args)
@@ -167,7 +166,6 @@ def train_multitask(args):
                                       collate_fn=para_train_data.collate_fn)
     para_dev_dataloader = DataLoader(para_dev_data, shuffle=False, batch_size=args.batch_size,
                                     collate_fn=para_dev_data.collate_fn)
-    para_train_iter = iter(para_train_dataloader)
     
     # sentence similarity data
     sts_train_data = SentencePairDataset(sts_train_data, args, isRegression=True)
@@ -176,7 +174,6 @@ def train_multitask(args):
                                         collate_fn=sts_train_data.collate_fn)
     sts_dev_dataloader = DataLoader(sts_dev_data, shuffle=False, batch_size=args.batch_size,
                                         collate_fn=sts_dev_data.collate_fn)
-    sts_train_iter = iter(sts_train_dataloader)
 
     # define the number of training steps
     ds_len = len(sts_train_data)
@@ -203,6 +200,9 @@ def train_multitask(args):
 
     # Run for the specified number of epochs
     for epoch in range(args.epochs):
+        sst_train_iter = iter(sst_train_dataloader)
+        para_train_iter = iter(para_train_dataloader)
+        sts_train_iter = iter(sts_train_dataloader)
         if args.sample == 'anneal':
                 probs = [8854, 141498, 6040]
                 alpha = 1. - 0.8 * epoch / (args.epochs - 1)
@@ -285,7 +285,7 @@ def train_multitask(args):
                 except StopIteration:
                     sts_train_iter = iter(sts_train_dataloader)
                     batch = next(sts_train_iter)
-                    
+
                 (b_ids1, b_mask1,
                 b_ids2, b_mask2,
                 b_labels, b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
