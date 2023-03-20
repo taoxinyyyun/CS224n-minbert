@@ -222,12 +222,8 @@ def train_multitask(args):
 
                 # train on SST
                 batch = next(enumerate(sst_train_dataloader))
-                b_ids, b_mask, b_labels = (batch['token_ids'],
-                                        batch['attention_mask'], batch['labels'])
-
-                b_ids = b_ids.to(device)
-                b_mask = b_mask.to(device)
-                b_labels = b_labels.to(device)
+                batch = tuple(t.to(device) for t in batch)
+                b_ids, b_mask, b_labels = batch
 
                 optimizer.zero_grad()
 
@@ -243,18 +239,9 @@ def train_multitask(args):
             # train on Para
             elif task_id == 1:
                 batch = next(enumerate(para_train_dataloader))
-                (b_ids1, b_mask1,
-                b_ids2, b_mask2,
-                b_labels, b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
-                            batch['token_ids_2'], batch['attention_mask_2'],
-                            batch['labels'], batch['sent_ids'])
-
-                b_ids1 = b_ids1.to(device)
-                b_mask1 = b_mask1.to(device)
-                b_ids2 = b_ids2.to(device)
-                b_mask2 = b_mask2.to(device)
-                b_labels = b_labels.to(device)
-
+                batch = tuple(t.to(device) for t in batch)
+                b_ids1, b_mask1, b_ids2, b_mask2, b_labels, b_sent_ids = batch
+                
                 optimizer.zero_grad()
                 logits = model.predict_paraphrase(b_ids1, b_mask1, b_ids2, b_mask2)
                 loss = F.binary_cross_entropy_with_logits(logits, b_labels.view(-1).float(), reduction='sum') / args.batch_size
@@ -268,17 +255,10 @@ def train_multitask(args):
             # train on STS
             else: 
                 batch = next(enumerate(sts_train_dataloader))
-                (b_ids1, b_mask1,
+                batch = tuple(t.to(device) for t in batch)
+                b_ids1, b_mask1,
                 b_ids2, b_mask2,
-                b_labels, b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
-                            batch['token_ids_2'], batch['attention_mask_2'],
-                            batch['labels'], batch['sent_ids'])
-
-                b_ids1 = b_ids1.to(device)
-                b_mask1 = b_mask1.to(device)
-                b_ids2 = b_ids2.to(device)
-                b_mask2 = b_mask2.to(device)
-                b_labels = b_labels.to(device)
+                b_labels, b_sent_ids = batch
 
                 optimizer.zero_grad()
                 logits = model.predict_similarity(b_ids1, b_mask1, b_ids2, b_mask2)
