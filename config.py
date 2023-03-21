@@ -201,8 +201,8 @@ class BertConfig(PretrainedConfig):
     gradient_checkpointing=False,
     position_embedding_type="absolute",
     use_cache=True,
-    hidden_size_aug=204,
-    extension_option='pal',
+    hidden_size_aug=100, # 204 for pal, 100 for lowrank
+    extension_option='lowrank', # {'pal', 'lowrank, 'none'}
     **kwargs
   ):
     super().__init__(pad_token_id=pad_token_id, **kwargs)
